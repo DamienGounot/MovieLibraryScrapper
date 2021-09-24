@@ -1,3 +1,5 @@
 /films
 /genJSON.py
 tmp/
+
+output.json

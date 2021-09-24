@@ -166,41 +166,57 @@ def retrieveMovieData(outputPath,movie):
 def createJSON(outputDirectory, file):
     if DEBUG: print("[createJSON] generating \""+file+"\" JSON file ...")
     if os.path.exists(outputDirectory):
-        with open(file) as f_in:
+        with open(file, "r") as f_in:
            
-            name = f_in.readline()
-            year = f_in.readline()
-            url = f_in.readline()
-            bigurl = f_in.readline()
-            kind = f_in.readline()
+            name = f_in.readline().strip()
+            year = f_in.readline().strip()
+            url = f_in.readline().strip()
+            bigurl = f_in.readline().strip()
+            kind = f_in.readline().strip()
             
             genre = [x for x in f_in.readline().split('|') if x != '\n']
-            rating = f_in.readline()
+            rating = f_in.readline().strip()
             director = [x for x in f_in.readline().split('|') if x != '\n']
             writer = [x for x in f_in.readline().split('|') if x != '\n']
             cast = [x for x in f_in.readline().split('|') if x != '\n']
-            outputPath = os.path.join(outputDirectory,file)
-            with open(outputPath) as f_out:
-                f_out.write('{\n')
-                f_out.write("\"name\" : {\n")
-                f_out.write("},\n")
-                f_out.write("\"year\" : {\n")
-                f_out.write("},\n")
-                f_out.write("\"name\" : {\n")
-                f_out.write("},\n")   # to continue...................................
-                f_out.write("\"year\" : {\n")
-                f_out.write("},\n")
-                f_out.write("\"name\" : {\n")
-                f_out.write("},\n")
-                f_out.write("\"year\" : {\n")
-                f_out.write("},\n")
-                
-                # to continue...................................            
+            tmp_file = get_random_string(16)
+            outputPath = os.path.join(outputDirectory,tmp_file)
             
+        with open(outputPath, "w") as f_out:
+            f_out.write("\""+name+"\" : {\n")
+            f_out.write("\t\"name\" : \""+name+"\",\n")
+            f_out.write("\t\"year\" : \""+year+'\",\n')
+            f_out.write("\t\"url\" : \""+url+'\",\n')
+            f_out.write("\t\"bigurl\" : \""+bigurl+'\",\n')
+            f_out.write("\t\"kind\" : \""+kind+'\",\n')
+            f_out.write("\t\"genre\" : [\n")
+            writeListInJSON(genre,f_out)
+            f_out.write("],\n")
+            f_out.write("\t\"rating\" : \""+rating+'\",\n')               
+            f_out.write("\t\"director\" : [\n")
+            writeListInJSON(director,f_out)
+            f_out.write("],\n")
+            f_out.write("\t\"writer\" : [\n")
+            writeListInJSON(writer,f_out)
+            f_out.write("],\n")
+            f_out.write("\t\"cast\" : [\n")
+            writeListInJSON(cast,f_out)
+            f_out.write("]\n")
+            f_out.write("}\n")            
     else:
         print("==========>[ERROR][createJSON] directory <" + outputDirectory + "> does not exist !")
         print("Aborting...")
         sys.exit(1)
+
+def writeListInJSON(list, JSON):
+    if len(list)  == 1:
+        for x in list[-1:]:
+            JSON.write("\t\t\t\"" + x + "\"\n") # last is write without ","
+    else: #if more than one element
+        for x in list[:-1]:
+            JSON.write("\t\t\t\"" + x + "\",\n")
+        for x in list[-1:]:
+            JSON.write("\t\t\t\"" + x + "\"\n") # last is write without ","
 
 if __name__ == '__main__':
     #==========================================
@@ -239,11 +255,12 @@ if __name__ == '__main__':
         fileList = getFileListFromDir(TEMP_DIR)
         cleanSubdirectory(JSON_DIR)
         for file in fileList:
-            createJSON(JSON_DIR,file) # to continue...................................
+            createJSON(JSON_DIR,file)
         fileList = getFileListFromDir(JSON_DIR)
-        #concatJSON(fileList,OUTPUT_DIR,JSON_FILE)
-        #movefileToCurrentDirectory(OUTPUT_DIR,JSON_FILE,os.getcwd(),JSON_FILE)
-        #clear(TEMP_DIR,JSON_DIR,OUTPUT_DIR)                           
+        cleanSubdirectory(OUTPUT_DIR)
+        concatJSON(fileList,OUTPUT_DIR,JSON_FILE)
+        movefileToCurrentDirectory(OUTPUT_DIR,JSON_FILE,os.getcwd(),JSON_FILE)
+        clear(TEMP_DIR,JSON_DIR,OUTPUT_DIR)                           
             
                         
 
