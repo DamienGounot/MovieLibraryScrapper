@@ -6,6 +6,8 @@ from imdb import IMDb
 import random
 import string
 import shutil
+import json
+
 
 def getFileListFromDir(directory):
     fileList = []
@@ -20,29 +22,28 @@ def getFileListFromDir(directory):
 
 def checkPath(inputPath):
     if os.path.exists(inputPath):
-        if DEBUG :print("[checkPath] Validating input path...")
+        if DEBUG :print("[checkPath] Validating <"+inputPath+"> input path...")
     else:
         print("==========>[ERROR][checkPath] path <" + inputPath + "> does not exist !")
         print("Aborting...")
         sys.exit(1)
     
 def movieRequest(movie,imdb):
-    if DEBUG :print("[movieRequest] Requesting IMDB API...") 
+    if DEBUG :print("[movieRequest] Requesting IMDB API for \""+movie+"\" movie...") 
     return imdb.get_movie(movie)
 
 def removeExtension(movie):
     data = movie.split('.')
-    if DEBUG :print("[removeExtension] Removing extension...") 
+    if DEBUG :print("[removeExtension] Removing extension for \""+movie+"\" file....") 
     return data[0]
-       
+   
 def extractID(link):
-    if DEBUG :print("[extractID] Extracting movie ID...")
-    link = link.replace('/title/tt', '')
-    link = link.replace('/', '')
-    return link            
+    if DEBUG :print("[extractID] Extracting movie ID from \""+link+"\"") 
+    id =   str(int(''.join(i for i in link if i.isdigit())))
+    return id        
 
 def imdbRequest(movie):
-    if DEBUG :print("[imdbRequest] Sending HTTP request...")
+    if DEBUG :print("[imdbRequest] Sending HTTP request for \""+movie+"\" movie...")
     url = "https://www.imdb.com/find?q="+movie
     response = requests.get(url)
     if response.ok:
@@ -56,7 +57,7 @@ def imdbRequest(movie):
             id = extractID(links[0])
             return id
         else:
-            print("==========>[ERROR][imdbRequest] Error when sending request !")
+            print("==========>[ERROR][imdbRequest] Error when sending request for <"+movie+"> movie !")
             return None
 
 def cleanSubdirectory(directory):
@@ -79,12 +80,12 @@ def concatJSON(jsonPath, outputDirectory, outputFile):
     if DEBUG :print("[concatJSON] Concatenation of all generated JSON files...")
     outputPath = os.path.join(outputDirectory,outputFile)
     with open(outputPath,"a") as jsonOutput:
-        jsonOutput.write("{\n")        
+        jsonOutput.write("{\n")
         for jsonFile in jsonPath[:-1]:
             with open(jsonFile,"r") as jsonInput:
                 for line in jsonInput:
-                    jsonOutput.write(line)
-                jsonOutput.write(",\n")
+                    jsonOutput.write("\t"+line)
+                jsonOutput.write("\t"+",\n")
         
         for jsonFile in jsonPath[-1:]:
             with open(jsonFile,"r") as jsonInput:
@@ -159,9 +160,10 @@ def retrieveMovieData(outputPath,movie):
                 f_out.write(cast['name'] + '|')
             f_out.write('\n')
         except:
-            print("==========>[WARNING][XXXXXXXXXXXXXXX] Required field is missing ! \""+movie+"\" scrapping is aborted. Continue...")
+            print("==========>[WARNING][retrieveMovieData] Required field is missing ! \""+movie+"\" scrapping is aborted. Continue...")
             f_out.close()
             os.remove(outputPath)
+        print("[retrieveMovieData] Get \""+movie+"\" data...")
 
 def createJSON(outputDirectory, file):
     if DEBUG: print("[createJSON] generating \""+file+"\" JSON file ...")
@@ -211,17 +213,37 @@ def createJSON(outputDirectory, file):
 def writeListInJSON(list, JSON):
     if len(list)  == 1:
         for x in list[-1:]:
-            JSON.write("\t\t\t\"" + x + "\"\n") # last is write without ","
+            JSON.write("\t\t\"" + escapeChar(x,'"') + "\"\n") # last is write without ","
     else: #if more than one element
         for x in list[:-1]:
-            JSON.write("\t\t\t\"" + x + "\",\n")
+            JSON.write("\t\t\"" + escapeChar(x,'"') + "\",\n")
         for x in list[-1:]:
-            JSON.write("\t\t\t\"" + x + "\"\n") # last is write without ","
+            JSON.write("\t\t\"" + escapeChar(x,'"') + "\"\n") # last is write without ","
 
+def escapeChar(string,char):
+    result =""
+    for x in string:
+        if(x == char):
+            x = '\\"'
+        result += x
+    return result
+
+def returnFileContent(file):
+    with open(file,'r') as f_in:
+        data = f_in.read()
+    return data
+
+def removeDuplicateObjectFromJSON(file):
+    jsonString = returnFileContent(file)
+    jsonObject = json.loads(jsonString)
+    json_string = json.dumps(jsonObject,indent=4,ensure_ascii=False)
+    with open(file, "w") as jsonFile:
+        jsonFile.write(json_string)
+    
 if __name__ == '__main__':
     #==========================================
     #Define var (ONLY THING THAT CAN BE EDITED)
-    DEBUG = False
+    DEBUG = True
     TEMP_DIR = "tmp"
     JSON_DIR = "json"
     JSON_FILE = "output.json"
@@ -238,20 +260,17 @@ if __name__ == '__main__':
         fileList = getFileListFromDir(PATH)
         cleanSubdirectory(TEMP_DIR)
         for file in fileList:
+            print("============================================================")
             file = os.path.basename(file)
             # remove extension .xxx
             movie = removeExtension(file)
-            id = imdbRequest(movie)
-            
+            id = imdbRequest(movie)     
             if id is not None:
                 tmp_file = get_random_string(16)
                 outputPath = os.path.join(TEMP_DIR,tmp_file)
                 imdb = IMDb()
-                response = imdb.get_movie(str(id))
-                #tags = [ 'title', 'year', 'cover url','full-size cover url','kind', 'genres','plot', 'plot outline','synopsis', 'rating','director', 'writer','cast']
-                retrieveMovieData(outputPath,movie)
-
-        
+                response = imdb.get_movie(id)
+                retrieveMovieData(outputPath,movie)      
         fileList = getFileListFromDir(TEMP_DIR)
         cleanSubdirectory(JSON_DIR)
         for file in fileList:
@@ -260,7 +279,8 @@ if __name__ == '__main__':
         cleanSubdirectory(OUTPUT_DIR)
         concatJSON(fileList,OUTPUT_DIR,JSON_FILE)
         movefileToCurrentDirectory(OUTPUT_DIR,JSON_FILE,os.getcwd(),JSON_FILE)
-        clear(TEMP_DIR,JSON_DIR,OUTPUT_DIR)                           
+        removeDuplicateObjectFromJSON(JSON_FILE)    
+        clear(TEMP_DIR,JSON_DIR,OUTPUT_DIR)                          
             
                         
 
