@@ -2,14 +2,14 @@
 Python web Scrapper to get Infos from movie(s) file(s)
 
 ## Requirements
-
+```bash
 pip install imdbpy
 pip install requests
 pip install bs4
-
+```
 ## Used library
-
-import os
+```python
+import os  
 import sys
 import requests
 from bs4 import BeautifulSoup
@@ -18,8 +18,7 @@ import random
 import string
 import shutil
 import json
-
-
+```
 ## How to use ? 
 
 ```bash
